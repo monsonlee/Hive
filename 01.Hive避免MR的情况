@@ -3,7 +3,7 @@ Hive中有些情况是不会触发MapReduce的，即所谓的--Local mode本地�
 以下三种方式都不会触发MapReduce
 1、select * from 
    (select 'limx' as name,'man' as gender,18 as age) t1;
-   
+   ![result]https://github.com/monsonlee/Hive/blob/master/images/1.1.png
    或者
    select * from t1 where pt='20190101';（限制分区）
    这种情况下，Hive会读取mytable1对应的存储目录下的文件。
