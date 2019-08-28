@@ -1,3 +1,65 @@
+Hive笔记
+
+1、Hive避免使用MR的情况        1
+
+2、Hive控制map个数和reduce个数        1
+
+2.1、控制hive任务中的map数        1
+
+2.2、控制hive任务的reduce数        3
+
+3、Join        6
+
+3.1、inner join        6
+
+3.2、left outer join        6
+
+3.3、right outer join        6
+
+3.4、full outer join        6
+
+3.5、left semi-join        6
+
+3.6、cross join（笛卡儿积）        6
+
+3.7、map-side join        6
+
+4、调优        6
+
+4.1、使用explain        6
+
+4.2、explain extended        6
+
+4.3、限制调整        6
+
+4.4、JOIN优化        6
+
+4.5、本地模式        6
+
+4.6、并行执行        6
+
+4.7、严格模式        6
+
+4.8、调整mapper个数和reducer个数        6
+
+4.9、JVM重用        6
+
+4.10、索引        6
+
+4.11、动态分区调整        6
+
+4.12、推测执行        6
+
+4.13、单个MR中多个GROUP BY        7
+
+4.14、数据倾斜、任务长尾        7
+
+5、窗口函数        8
+
+5.1、sum,avg,min,max        8
+
+5.2、ntile,row\_number,rank,dense\_rank        9
+
 # 1、Hive避免使用MR的情况
 
 在Hive中的查询，大多数情况下都会被解析成MapReduce的job进行计算。
