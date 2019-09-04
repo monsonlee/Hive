@@ -1,4 +1,42 @@
-[toc]
+- [1、Hive避免使用MR的情况](#1-hive----mr---)
+- [2、Hive控制map个数和reduce个数](#2-hive--map---reduce--)
+  * [2.1、控制hive任务中的map数](#21---hive----map-)
+  * [2.2、控制hive任务的reduce数](#22---hive---reduce-)
+- [3、Join](#3-join)
+  * [3.1、inner join](#31-inner-join)
+  * [3.2、left outer join](#32-left-outer-join)
+  * [3.3、right outer join](#33-right-outer-join)
+  * [3.4、full outer join](#34-full-outer-join)
+  * [3.5、left semi-join](#35-left-semi-join)
+  * [3.6、cross join（笛卡儿积）](#36-cross-join------)
+  * [3.7、map-side join](#37-map-side-join)
+- [4、调优](#4---)
+  * [4.1、使用explain](#41---explain)
+  * [4.2、explain extended](#42-explain-extended)
+  * [4.3、限制调整](#43-----)
+  * [4.4、JOIN优化](#44-join--)
+  * [4.5、本地模式](#45-----)
+  * [4.6、并行执行](#46-----)
+  * [4.7、严格模式](#47-----)
+  * [4.8、调整mapper个数和reducer个数](#48---mapper---reducer--)
+    + [4.8.1、控制hive任务中的map数](#481---hive----map-)
+    + [4.8.2、控制hive任务的reduce数](#482---hive---reduce-)
+  * [4.9、JVM重用](#49-jvm--)
+  * [4.10、索引](#410---)
+  * [4.11、动态分区调整](#411-------)
+  * [4.12、推测执行](#412-----)
+  * [4.13、单个MR中多个GROUP BY](#413---mr---group-by)
+  * [4.14、数据倾斜、任务长尾](#414----------)
+- [5、窗口函数](#5-----)
+  * [5.1、sum,avg,min,max](#51-sum-avg-min-max)
+  * [5.2、ntile,row_number,rank,dense_rank](#52-ntile-row-number-rank-dense-rank)
+- [6、数据类型](#6-----)
+- [7、hiveconf参数](#7-hiveconf--)
+- [8、正则表达式](#8------)
+- [9、CTAS问题](#9-ctas--)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
 1、Hive避免使用MR的情况
 =======================
 
