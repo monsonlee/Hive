@@ -14,6 +14,8 @@ mode本地模式。
 
 D:\\github\\Hive\\images\\1.1.png
 
+D:\\github\\Hive\\images\\1.1.png
+
 或者
 
 select \* from t1 where pt='20190101';（限制分区）
