@@ -1,9 +1,8 @@
 1、Hive避免使用MR的情况
 =======================
 
-在Hive中的查询，大多数情况下都会被解析成MapReduce的job进行计算。
-
-Hive中有些情况是不会触发MapReduce的，即所谓的--Local mode本地模式。
+在Hive中的查询，大多数情况下都会被解析成MapReduce的job进行计算。Hive中有些情况是不会触发MapReduce的，即所谓的--Local
+mode本地模式。
 
 以下三种方式都不会触发MapReduce
 
@@ -12,6 +11,8 @@ Hive中有些情况是不会触发MapReduce的，即所谓的--Local mode本地�
 (select 'limx' as name,'man' as gender,18 as age) t1;
 
 ![D:\\github\\Hive\\images\\1.1.png](media/e75634f97bf500cb406ef723db03d189.png)
+
+D:\\github\\Hive\\images\\1.1.png
 
 或者
 
@@ -35,42 +36,31 @@ set hive.exec.mode.local.auto=true;
 
 主要的决定因素有：
 input的文件总个数，input的文件大小，集群设置的文件块大小(目前为128M,
-可在hive中通过set dfs.block.size;命令查看到，该参数不能自定义修改)；
+可在hive中通过set dfs.block.size命令查看到，该参数不能自定义修改)；
 
 举例：
 
-a)
-假设input目录下有1个文件a,大小为780M,那么hadoop会将该文件a分隔成7个块（6个128m的块和1个12m的块），从而产生7个map数。
+1.  假设input目录下有1个文件a,大小为780M,那么hadoop会将该文件a分隔成7个块（6个128m的块和1个12m的块），从而产生7个map数。
 
-b)
-假设input目录下有3个文件a,b,c,大小分别为10m，20m，130m，那么hadoop会分隔成4个块（10m,20m,128m,2m），从而产生4个map数，即如果文件大于块大小(128m)，那么会拆分，如果小于块大小，则把该文件当成一个块。
+2.  假设input目录下有3个文件a,b,c,大小分别为10m，20m，130m，那么hadoop会分隔成4个块（10m,20m,128m,2m），从而产生4个map数，即如果文件大于块大小(128m)，那么会拆分，如果小于块大小，则把该文件当成一个块。
 
-是不是map数越多越好？
+3.  map数是不是越多越好？不是，如果一个任务有很多小文件（远远小于块大小128m），则每个小文件也会被当做一个块，用一个map任务来完成，而一个map任务启动和初始化的时间远远大于逻辑处理的时间，就会造成很大的资源浪费。而且，同时可执行的map数是受限的。
 
-答案是否定的。如果一个任务有很多小文件（远远小于块大小128m），则每个小文件也会被当做一个块，用一个map任务来完成，而一个map任务启动和初始化的时间远远大于逻辑处理的时间，就会造成很大的资源浪费。而且，同时可执行的map数是受限的。
+4.  是不是一定要保证每个map处理接近128m的文件块？答案也是不一定。比如有一个127m的文件，正常会用一个map去完成，但这个文件只有一个或者两个小字段，却有几千万的记录，如果map处理的逻辑比较复杂，用一个map任务去做，肯定也比较耗时。
 
-是不是保证每个map处理接近128m的文件块，就高枕无忧了？
-
-答案也是不一定。比如有一个127m的文件，正常会用一个map去完成，但这个文件只有一个或者两个小字段，却有几千万的记录，如果map处理的逻辑比较复杂，用一个map任务去做，肯定也比较耗时。
-
-针对上面的问题3和4，我们需要采取两种方式来解决：即减少map数和增加map数。
+针对上面的问题3和4，我们需要采取两种方式来解决：减少map数和增加map数。
 
 如何合并小文件，减少map数？
 
 假设一个SQL任务：
 
-Select count(1)
+Select count(1) from t1 where pt = ‘2019-01-01’;
 
-from popt_tbaccountcopy_mes
-
-where pt = ‘2012-07-04’;
-
-该任务的inputdir
-/group/p_sdo_data/p_sdo_data_etl/pt/popt_tbaccountcopy_mes/pt=2012-07-04共有194个文件，其中很多是远远小于128m的小文件，总大小9G，正常执行会用194个map任务。
+该任务的目录下共有194个文件，其中很多是远远小于128m的小文件，总大小9G，正常执行会用194个map任务。
 
 Map总共消耗的计算资源： SLOTS_MILLIS_MAPS= 623,020。
 
-我通过以下方法来在map执行前合并小文件，减少map数：
+通过以下方法来在map执行前合并小文件，减少map数：
 
 set mapred.max.split.size=100000000;
 
@@ -133,9 +123,9 @@ hive.exec.reducers.bytes.per.reducer（每个reduce任务处理的数据量，�
 
 hive.exec.reducers.max（每个任务最大的reduce数，默认为999）
 
-计算reducer数的公式很简单N=min(参数2，总输入数据量/参数1)
+计算reducer数的公式很简单**N=min(参数2，总输入数据量/参数1)**
 
-即，如果reduce的输入（map的输出）总大小不超过1G,那么只会有一个reduce任务；
+即如果reduce的输入（map的输出）总大小不超过1G,那么只会有一个reduce任务；
 
 如：select pt,count(1) from popt_tbaccountcopy_mes where pt = ‘2012-07-04’ group
 by pt;
@@ -169,17 +159,17 @@ reduce个数并不是越多越好；
 
 很多时候你会发现任务中不管数据量多大，不管你有没有设置调整reduce个数的参数，任务中一直都只有一个reduce任务；其实只有一个reduce任务的情况，除了数据量小于hive.exec.reducers.bytes.per.reducer参数值的情况外，还有以下原因：
 
-a) 没有group by的汇总，比如把select pt,count(1) from popt_tbaccountcopy_mes
-where pt = '2012-07-04' group by pt; 写成 select count(1) from
-popt_tbaccountcopy_mes where pt = '2012-07-04';
+1.  没有group by的汇总，比如把select pt,count(1) from popt_tbaccountcopy_mes
+    where pt = '2012-07-04' group by pt; 写成 select count(1) from
+    popt_tbaccountcopy_mes where pt = '2012-07-04';
 
 这点非常常见，希望大家尽量改写。
 
-b) 用了Order by
+1.  用了Order by
 
-c) 有笛卡尔积
+2.  有笛卡尔积
 
-通常这些情况下，除了找办法来变通和避免，我暂时没有什么好的办法，因为这些操作都是全局的，所以hadoop不得不用一个reduce去完成；
+因为这些操作都是全局的，所以hadoop不得不用一个reduce去完成；
 
 同样的，在设置reduce个数的时候也需要考虑这两个原则：使大数据量利用合适的reduce数；使单个reduce任务处理合适的数据量。
 
@@ -367,42 +357,31 @@ set hive.exec.mode.local.auto=true;(默认为false)
 
 主要的决定因素有：
 input的文件总个数，input的文件大小，集群设置的文件块大小(目前为128M,
-可在hive中通过set dfs.block.size;命令查看到，该参数不能自定义修改)；
+可在hive中通过set dfs.block.size命令查看到，该参数不能自定义修改)；
 
 举例：
 
-a)
-假设input目录下有1个文件a,大小为780M,那么hadoop会将该文件a分隔成7个块（6个128m的块和1个12m的块），从而产生7个map数。
+1.  假设input目录下有1个文件a,大小为780M,那么hadoop会将该文件a分隔成7个块（6个128m的块和1个12m的块），从而产生7个map数。
 
-b)
-假设input目录下有3个文件a,b,c,大小分别为10m，20m，130m，那么hadoop会分隔成4个块（10m,20m,128m,2m），从而产生4个map数，即如果文件大于块大小(128m)，那么会拆分，如果小于块大小，则把该文件当成一个块。
+2.  假设input目录下有3个文件a,b,c,大小分别为10m，20m，130m，那么hadoop会分隔成4个块（10m,20m,128m,2m），从而产生4个map数，即如果文件大于块大小(128m)，那么会拆分，如果小于块大小，则把该文件当成一个块。
 
-是不是map数越多越好？
+3.  map数是不是越多越好？不是，如果一个任务有很多小文件（远远小于块大小128m），则每个小文件也会被当做一个块，用一个map任务来完成，而一个map任务启动和初始化的时间远远大于逻辑处理的时间，就会造成很大的资源浪费。而且，同时可执行的map数是受限的。
 
-答案是否定的。如果一个任务有很多小文件（远远小于块大小128m），则每个小文件也会被当做一个块，用一个map任务来完成，而一个map任务启动和初始化的时间远远大于逻辑处理的时间，就会造成很大的资源浪费。而且，同时可执行的map数是受限的。
+4.  是不是一定要保证每个map处理接近128m的文件块？答案也是不一定。比如有一个127m的文件，正常会用一个map去完成，但这个文件只有一个或者两个小字段，却有几千万的记录，如果map处理的逻辑比较复杂，用一个map任务去做，肯定也比较耗时。
 
-是不是保证每个map处理接近128m的文件块，就高枕无忧了？
+针对上面的问题3和4，我们需要采取两种方式来解决：减少map数和增加map数。
 
-答案也是不一定。比如有一个127m的文件，正常会用一个map去完成，但这个文件只有一个或者两个小字段，却有几千万的记录，如果map处理的逻辑比较复杂，用一个map任务去做，肯定也比较耗时。
-
-针对上面的问题3和4，我们需要采取两种方式来解决：即减少map数和增加map数。
-
-如何合并小文件，减少map数？
+**如何合并小文件，减少map数？**
 
 假设一个SQL任务：
 
-Select count(1)
+Select count(1) from t1 where pt = ‘2019-01-01’;
 
-from popt_tbaccountcopy_mes
-
-where pt = ‘2012-07-04’;
-
-该任务的inputdir
-/group/p_sdo_data/p_sdo_data_etl/pt/popt_tbaccountcopy_mes/pt=2012-07-04共有194个文件，其中很多是远远小于128m的小文件，总大小9G，正常执行会用194个map任务。
+该任务的目录下共有194个文件，其中很多是远远小于128m的小文件，总大小9G，正常执行会用194个map任务。
 
 Map总共消耗的计算资源： SLOTS_MILLIS_MAPS= 623,020。
 
-我通过以下方法来在map执行前合并小文件，减少map数：
+通过以下方法来在map执行前合并小文件，减少map数：
 
 set mapred.max.split.size=100000000;
 
@@ -420,7 +399,7 @@ set hive.input.format=org.apache.hadoop.hive.ql.io.CombineHiveInputFormat;
 大概解释一下，100000000表示100M, set
 hive.input.format=org.apache.hadoop.hive.ql.io.CombineHiveInputFormat;这个参数表示执行前进行小文件合并，前面三个参数确定合并文件块的大小，大于文件块大小128m的，按照128m来分隔，小于128m,大于100m的，按照100m来分隔，把那些小于100m的（包括小文件和分割大文件剩下的）进行合并，最终生成了74个块。
 
-如何适当的增加map数？
+**如何适当的增加map数？**
 
 当input的文件都很大，任务逻辑复杂，map执行非常慢的时候，可以考虑增加Map数，来使得每个map处理的数据量减少，从而提高任务的执行效率。
 
@@ -452,11 +431,11 @@ distribute by rand(123);
 
 这样会将a表的记录，随机的分散到包含10个文件的a_1表中，再用a_1代替上面sql中的a表，则会用10个map任务去完成。每个map任务处理大于12M（几百万记录）的数据，效率肯定会好很多。
 
-看上去，貌似这两种有些矛盾，一个是要合并小文件，一个是要把大文件拆成小文件，这点正是重点需要关注的地方，根据实际情况，控制map数量需要遵循两个原则：使大数据量利用合适的map数；使单个map任务处理合适的数据量。
+这两种看着有些矛盾，一个是要合并小文件，一个是要把大文件拆成小文件，这点正是重点需要关注的地方，根据实际情况，控制map数量需要遵循两个原则：使大数据量利用合适的map数；使单个map任务处理合适的数据量。
 
 ### 4.8.2、控制hive任务的reduce数
 
-Hive自己如何确定reduce数：
+**Hive自己如何确定reduce数：**
 
 reduce个数的设定极大影响任务执行效率，不指定reduce个数的情况下，Hive会猜测确定一个reduce个数，基于以下两个设定：
 
@@ -464,9 +443,9 @@ hive.exec.reducers.bytes.per.reducer（每个reduce任务处理的数据量，�
 
 hive.exec.reducers.max（每个任务最大的reduce数，默认为999）
 
-计算reducer数的公式很简单N=min(参数2，总输入数据量/参数1)
+计算reducer数的公式很简单**N=min(参数2，总输入数据量/参数1)**
 
-即，如果reduce的输入（map的输出）总大小不超过1G,那么只会有一个reduce任务；
+即如果reduce的输入（map的输出）总大小不超过1G,那么只会有一个reduce任务；
 
 如：select pt,count(1) from popt_tbaccountcopy_mes where pt = ‘2012-07-04’ group
 by pt;
@@ -474,7 +453,7 @@ by pt;
 /group/p_sdo_data/p_sdo_data_etl/pt/popt_tbaccountcopy_mes/pt=2012-07-04
 总大小为9G多，因此这句有10个reduce
 
-调整reduce个数方法一：
+**调整reduce个数方法一：**
 
 调整hive.exec.reducers.bytes.per.reducer参数的值；
 
@@ -483,7 +462,7 @@ set hive.exec.reducers.bytes.per.reducer=500000000; （500M）
 select pt,count(1) from popt_tbaccountcopy_mes where pt = ‘2012-07-04’ group by
 pt; 这次有20个reduce
 
-调整reduce个数方法二；
+**调整reduce个数方法二；**
 
 set mapred.reduce.tasks = 15;
 
@@ -496,23 +475,19 @@ reduce个数并不是越多越好；
 
 另外，有多少个reduce,就会有多少个输出文件，如果生成了很多个小文件，那么如果这些小文件作为下一个任务的输入，则也会出现小文件过多的问题；
 
-什么情况下只有一个reduce？
+**什么情况下只有一个reduce？**
 
 很多时候你会发现任务中不管数据量多大，不管你有没有设置调整reduce个数的参数，任务中一直都只有一个reduce任务；其实只有一个reduce任务的情况，除了数据量小于hive.exec.reducers.bytes.per.reducer参数值的情况外，还有以下原因：
 
-a) 没有group by的汇总，比如把select pt,count(1) from popt_tbaccountcopy_mes
-where pt = '2012-07-04' group by pt; 写成 select count(1) from
-popt_tbaccountcopy_mes where pt = '2012-07-04';
+1.没有group by的汇总，比如把select pt,count(1) from popt_tbaccountcopy_mes where
+pt = '2012-07-04' group by pt; 写成 select count(1) from popt_tbaccountcopy_mes
+where pt = '2012-07-04';这点非常常见，希望大家尽量改写。
 
-这点非常常见，希望大家尽量改写。
+2.用了Order by
 
-b) 用了Order by
+3.有笛卡尔积
 
-c) 有笛卡尔积
-
-通常这些情况下，除了找办法来变通和避免，我暂时没有什么好的办法，因为这些操作都是全局的，所以hadoop不得不用一个reduce去完成；
-
-同样的，在设置reduce个数的时候也需要考虑这两个原则：使大数据量利用合适的reduce数；使单个reduce任务处理合适的数据量。
+因为这些操作都是全局的，所以hadoop不得不用一个reduce去完成；在设置reduce个数的时候也需要考虑这两个原则：使大数据量利用合适的reduce数；使单个reduce任务处理合适的数据量。
 
 4.9、JVM重用
 ------------
@@ -533,8 +508,6 @@ c) 有笛卡尔积
 ------------------------
 
 **join长尾**
-
-背景
 
 SQL在Join执行阶段会将Join
 Key相同的数据分发到同一个执行Instance上处理。如果某个Key上的数据量比较多，会导致该Instance执行时间比其他Instance执行时间长。其表现为：执行日志中该Join
@@ -676,22 +649,22 @@ Dense_rank()：分组排名，没有空位
 7、hiveconf参数
 ===============
 
-| **功能**                                                 | **语法**                                                                |
-|----------------------------------------------------------|-------------------------------------------------------------------------|
-| 设置job名称                                              | mapred.job.name=complatstat_hive                                        |
-| 数据压缩是否开启                                         | hive.exec.compress.output=true                                          |
-| 中间结果是否压缩                                         | hive.exec.compress.intermediate=true                                    |
-| Sequencefile压缩级别                                     | io.seqfile.compression.type=BLOCK                                       |
-| 输出压缩方式                                             | mapred.output.compression.codec=org.apache.hadoop.io.compress.GzipCodec |
-| 在map端做部分聚集                                        | hive.map.aggr=true                                                      |
-| HDFS路径, 存储不同 map/reduce 阶段                       | hive.exec.scratchdir=/user/complat/tmp                                  |
-| 执行计划和中间输出结果                                   |                                                                         |
-| 队列名                                                   | mapred.job.queue.name=complat                                           |
-| 支持动态分区                                             | hive.exec.dynamic.partition=true                                        |
-| 允许所有的分区列都是动态分区列                           | hive.exec.dynamic.partition.mode=nonstrict                              |
-| 执行map前开启小文件合并                                  | hive.input.format=org.apache.hadoop.hive.ql.io.CombineHiveInputFormat   |
-| 是否根据输入表的大小自动转成map join                     | hive.auto.convert.join=false                                            |
-| hive.groupby.skewindata                                  | 当数据出现倾斜时，如果该变量设置为true，那么Hive会自动进行负载均衡。    |
+| **功能**                             | **语法**                                                                |
+|--------------------------------------|-------------------------------------------------------------------------|
+| 设置job名称                          | mapred.job.name=complatstat_hive                                        |
+| 数据压缩是否开启                     | hive.exec.compress.output=true                                          |
+| 中间结果是否压缩                     | hive.exec.compress.intermediate=true                                    |
+| Sequencefile压缩级别                 | io.seqfile.compression.type=BLOCK                                       |
+| 输出压缩方式                         | mapred.output.compression.codec=org.apache.hadoop.io.compress.GzipCodec |
+| 在map端做部分聚集                    | hive.map.aggr=true                                                      |
+| HDFS路径, 存储不同 map/reduce 阶段   | hive.exec.scratchdir=/user/complat/tmp                                  |
+| 执行计划和中间输出结果               |                                                                         |
+| 队列名                               | mapred.job.queue.name=complat                                           |
+| 支持动态分区                         | hive.exec.dynamic.partition=true                                        |
+| 允许所有的分区列都是动态分区列       | hive.exec.dynamic.partition.mode=nonstrict                              |
+| 执行map前开启小文件合并              | hive.input.format=org.apache.hadoop.hive.ql.io.CombineHiveInputFormat   |
+| 是否根据输入表的大小自动转成map join | hive.auto.convert.join=false                                            |
+| hive.groupby.skewindata              | 当数据出现倾斜时，如果该变量设置为true，那么Hive会自动进行负载均衡。    |
 
 HIVE_2=”/usr/local/complat/complat_clients/cli_bin/hive
 
