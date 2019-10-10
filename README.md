@@ -34,6 +34,7 @@
 - [7、hiveconf参数](#7hiveconf参数)
 - [8、正则表达式](#8正则表达式)
 - [9、CTAS问题](#9ctas问题)
+- [10、update、delete问题](#10updatedelete问题)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -768,3 +769,18 @@ select创建表时源表是分区表，则新建的表会多字段，具体多�
 4.使用CTAS方式创建的表不能是外部表。
 
 5.使用CTAS创建的表不能分桶表。
+
+10、update、delete问题
+===========
+hive支持delete和update操作，但是需要额外配置
+修改hive-site.xml，增加以下配置
+hive.support.concurrency = true  
+hive.enforce.bucketing = true  
+hive.exec.dynamic.partition.mode = nonstrict  
+hive.txn.manager = org.apache.hadoop.hive.ql.lockmgr.DbTxnManager  
+hive.compactor.initiator.on = true  
+hive.compactor.worker.threads = 1
+
+如果要支持delete和update，则必须输出是AcidOutputFormat然后必须分桶，目前只有ORCFileformat支持AcidOutputFormat，而且建表时必须指定参数('transactional' = true)
+update：update db.t1 set 字段 = ...  where ...
+delete：delete from db.t1 where ...
