@@ -590,9 +590,13 @@ hive.error.on.empty.partition
 当有空分区生成时，是否抛出异常。
 
 一般不需要设置。
-SET hive.exec.dynamic.partition=true;  
+
+SET hive.exec.dynamic.partition=true;
+
 SET hive.exec.dynamic.partition.mode=nonstrict; 
+
 SET hive.exec.max.dynamic.partitions.pernode = 1000;
+
 SET hive.exec.max.dynamic.partitions=1000;
 
 4.12、推测执行
