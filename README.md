@@ -62,7 +62,17 @@ select \* from t1 where pt='20190101';（限制分区）
 
 3、手动启用本地模式：
 
-set hive.exec.mode.local.auto=true;
+set hive.exec.mode.local.auto=true; //开启本地mr
+
+//设置local mr的最大输入数据量,当输入数据量小于这个值的时候会采用local mr的方式
+
+set hive.exec.mode.local.auto.inputbytes.max=100000000;
+
+//设置local mr的最大输入文件个数,当输入文件个数小于这个值的时候会采用local mr的方式
+
+set hive.exec.mode.local.auto.tasks.max=10;
+
+当这三个参数同时成立时候，才会采用本地mr
 
 2、Hive控制map个数和reduce个数
 ==============================
